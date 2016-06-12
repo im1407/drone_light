@@ -1,0 +1,165 @@
+-- MA2 Drone Tracking System
+-- Ian Mackenzie, E-GO CG
+
+--[[ 
+  This example plug-in demonstrates the uses of a continual loop to poll (grab) a DMX channel, 
+  and use it's value to control the LittLites and also for fun, the button back lighting.
+
+  The script is heavily commented to benefit those who have no clue as to how it works, 
+  which in reality is very simple.  It's also a guide to how a programmer should interact
+  run such a scenario where they are repeating a task constantly in real-time.
+  
+  This continual poll-consume-sleep-repeat arrangement lets the script run in the background,
+  sharing the CPU time available with other plug-ins and more importantly MA itself.  
+  
+  NOTE: Most plug-ins will not do this, they well do their job and get out.  This one waits
+  continually for something to happen, and there are special considerations for such a plug-in.  
+  
+  The sleeping part is important when running a script in the background, as we only achieve 
+  30 DMX frames per second in reality, so there is no real point in getting the value constantly.
+  Remembering that computers are really fast, if we don't sleep for some time 
+  we'll do it 1000 frames per second which is not only a huge waste, but could also slow down MA. (don't do it!)
+  
+  
+  Now, 60 times per second we:
+   * (Poll) check a DMX channel.  
+   * (Consume) Check ff that channel has changed in value, we then
+               use the value to set the intensity of the littlites, 
+	           and also store that value for next time around.
+   * (Sleep) Rest for a while
+  
+  We control the littlites by issuing a MA2 Command Line command.  Easy.
+  
+  NOTE: You can only get DMX if you have Parameters from some MA hardware!!  
+
+  Lets get started.  Lines that begin with -- are comments, they are ignored by the system
+--]]
+
+
+--[[
+   Here we specify the DMX channel to use for desk lights, 
+   512 being the last channel on the 1st universe,
+   513 being the first channel on the 2nd universe.
+--]]
+local DMX_Channel = 512;  
+
+--[[ 
+    This string (bunch of letters) is used as a prefix to any messages we return to the user/console
+    to keep all messages all consistent, so we know which plug-in the message is from!
+--]]
+local Plugin_Info = "Positioner DMX plug-in: "
+
+--[[
+	here we assign some of the MA2 Lua API (the commands which relate to MA stuff)
+	to local names which are not only easier to use, but actually more efficient
+	when the script is running. Assigning to locals means they can be found faster than
+	looking for them directly, and we are interested in good performance ;)
+ 
+    Note: locals are things that only have relevance to this script, not other plug-ins.
+--]]
+local sleep = gma.sleep;     -- used to yield spare time to GMA.
+local dmx = gma.show.getdmx; -- get value of a dmx channel
+local C = gma.cmd;           -- execute a command on the command line
+
+--[[
+    Now we can type "dmx(1)" for example, instead of "gma.show.getdmx(1)"
+
+	
+    Next we define our variables... 
+    The first, we'll call "va" is also local (so unique and only available to this script).
+--]]
+local va = 0;  -- used for comparison of DMX value
+
+--[[
+   The second, "plugin_loops_run" is an example of a global variable (all plug-ins can use it)
+   
+   It's not a good idea to use global variables! Unless it's very unique or something universal to everyone.
+   The problem with global variables is that if I use the same variable name as some other person,
+   like "counter", or something common or sloppy like "tmp", and our scripts both run together 
+   there can be problems when the two scripts change the values . 
+
+   Note that anything that is not declared with "local", is automatically declared as global.   
+   General Rule:  keep it local.
+--]]
+
+plugin_loops_run = 1; -- used to control the loops any of my plug-ins, kill switch.
+
+--[[ 
+     So if any other plug-in sets "plugin_loops_run = 0" then this plug-in will stop too.
+     This is not really required, but kind of an emergency kill switch for all plug-ins with loops 
+
+	 
+	Now, we have some functions... 
+--]]
+
+-- called by gMA on "Go Plugin X"
+function MainLoop() 
+  
+  -- post a message to the command line to advise our plug-in name and we are running
+  gma.feedback( Plugin_Info .. 'Started on DMX Channel ' .. DMX_Channel );  
+
+--[[ 
+     Above, we join two strings together, and write a number at the end.
+     The .. part is a concatenator, which joins these parts together: 
+  
+     "Plugin_Info" is a string of characters we defined earlier, as "LittLites DMX Plugin: "
+  
+     'Started on DMX_Channel ' is a constant string, (we can't change when running)
+  
+     "DMX_Channel" is a number we defined earlier and not a string, but Lua will convert
+	 it to a string for us.
+   
+     This will result in print on the Command Line, "LittLites DMX Plugin: Started on DMX Channel 512"
+--]]
+
+  plugin_loops_run = 1; -- we want to run this loop, set it to 1.
+  
+--[[ 
+   We are now ready to loop constantly while variable "plugin_loops_run" is not equal to 0
+--]]
+  while (plugin_loops_run ~= 0) do      
+
+    -- look for a change in DMX value of the channel we are listening to
+	-- compare the value in va with the value in DMX_Channel  ( ~= means not-equal-to )
+	if (va ~= dmx(DMX_Channel)) then 
+
+   	    -- get the new value of the DMX channel into our stored variable
+		va = dmx(DMX_Channel); 
+
+		-- set the desk lights by executing this Command Line command, with our stored variable tacked on
+		C('Assign Root 3.2/intensitylittlight=' .. va); 
+		
+	end
+
+	-- we don't waste time (cpu) doing this constantly, there is no point, and we waste 
+    -- time that gMA could be doing other things... so, we sleep! but only for a short time...
+    -- 0.0165s yields a bit above 60hz update rate
+    sleep(0.0165); 
+
+  end -- now we loop back to the "while" statement
+  
+   -- end of the loop, we only ever get here when the variable "plugin_loops_run" == 0
+  
+   -- this sends a message to the gMA message centre
+   C('Alert "'.. Plugin_Info .. 'Leaving MainLoop()"'); 
+
+end 
+-- end of the function MainLoop()
+
+
+--[[ 
+    This function below is called by gMA when 'Off Plugin X' is executed.
+	It is not really necessary, but helpful in providing feedback to the user
+    to let them know the plug-in has finished or been stopped.
+--]]	
+function Cleanup()
+     -- print a message in the command line feedback to advise we've stopped.
+     gma.feedback(Plugin_Info .. ' Finished');
+end
+
+--[[
+   This next statement is _very important_, every plug-in should have it!  
+   It tells gMA how to run and stop/reset our plug-in.
+   we tell gMA what our start and stop functions are by name with no brackets, and in order.
+--]]
+return MainLoop, Cleanup;

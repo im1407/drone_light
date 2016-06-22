@@ -1,0 +1,351 @@
+-- MA2 Drone Tracking System
+-- Ian Mackenzie, E-GO CG
+
+--[[
+here we assign some of the MA2 Lua API (the commands which relate to MA stuff)
+to local names which are not only easier to use, but actually more efficient
+when the script is running. Assigning to locals means they can be found faster than
+looking for them directly, and we are interested in good performance
+
+    Note: locals are things that only have relevance to this script, not other plug-ins.
+--]]
+local sleep = gma.sleep;     -- used to yield spare time to GMA.
+local dmx = gma.show.getdmx; -- get value of a dmx channel
+local C = gma.cmd;           -- execute a command on the command line
+
+function calcTilt(X, Y, Z)
+
+	local a1 = Z;
+	local b1 = (X^2);
+	local c1 = (Y^2);
+	local d1 = b1 + c1;
+	local e1 = math.sqrt(d1);
+	local f1 = e1/a1;
+	local g1 = math.atan(f1);
+	local tilt = math.deg(g1)*1.1;
+
+	return tilt;
+end
+
+function calcPan(X, Y)
+
+	local slope = (-Y)/(X);
+	local panRad = math.atan(slope);
+	local pan = math.deg(panRad);
+	return (pan+270)*0.9916666-270;
+
+end
+
+function lightInit()
+	--numLights = 2;
+
+	light1X = -1.221;
+	light1Y = -1.221;
+	light1Z = 0;
+
+	light2X = 0;
+	light2Y = 0;
+	light2Z = 0;
+
+	light3X = 0;
+	light3Y = 0;
+	light3Z = 0;
+
+	light4X = 0;
+	light4Y = 0;
+	light4Z = 0;
+
+	light5X = 0;
+	light5Y = 0;
+	light5Z = 0;
+
+	light6X = 0;
+	light6Y = 0;
+	light6Z = 0;
+
+	light7X = 0;
+	light7Y = 0;
+	light7Z = 0;
+
+	light8X = 0;
+	light8Y = 0;
+	light8Z = 0;
+
+	light8X = 0;
+	light8Y = 0;
+	light8Z = 0;
+
+	light9X = 0;
+	light9Y = 0;
+	light9Z = 0;
+
+	light10X = 0;
+	light10Y = 0;
+	light10Z = 0;
+
+	light11X = 0;
+	light11Y = 0;
+	light11Z = 0;
+
+	light12X = 0;
+	light12Y = 0;
+	light12Z = 0;
+
+end
+
+function droneInit()
+
+	initDrone1X = 4.8;
+	initDrone1Y = -1.2;
+	initDrone1Z = 1;
+
+	initDrone2X = 4.8;
+	initDrone2Y = -1.2;
+	initDrone2Z = 1.8;
+
+	initDrone3X = 4.8;
+	initDrone3Y = 0;
+	initDrone3Z = 1;
+
+	--initDrone4X = 3.660;
+	--initDrone4Y = 0;
+	--initDrone4Z = 1.278;
+
+	--initDrone5X = 3.660;
+	--initDrone5Y = 0;
+	--initDrone5Z = 1.278;
+
+	--initDrone6X = 3.660;
+	--initDrone6Y = 0;
+	--initDrone6Z = 1.278;
+
+	drone1X1 = initDrone1X - light1X;
+	drone1Y1 = initDrone1Y - light1Y;
+	drone1Z1 = initDrone1Z - light1Z;
+
+	drone1X2 = initDrone1X - light2X;
+	drone1Y2 = initDrone1Y - light2Y;
+	drone1Z2 = initDrone1Z - light2Z;
+
+	drone2X1 = initDrone2X - light1X;
+	drone2Y1 = initDrone2Y - light1Y;
+	drone2Z1 = initDrone2Z - light1Z;
+
+	drone2X2 = initDrone2X - light2X;
+	drone2Y2 = initDrone2Y - light2Y;
+	drone2Z2 = initDrone2Z - light2Z;
+
+	drone3X1 = initDrone3X - light1X;
+	drone3Y1 = initDrone3Y - light1Y;
+	drone3Z1 = initDrone3Z - light1Z;
+
+	drone3X2 = initDrone3X - light2X;
+	drone3Y2 = initDrone3Y - light2Y;
+	drone3Z2 = initDrone3Z - light2Z;
+
+	--drone4X = initDrone4X - light4X;
+	--drone4Y = initDrone4Y - light4Y;
+	--drone4Z = initDrone4Z - light4Z;
+
+	--drone5X = initDrone5X - light5X;
+	--drone5Y = initDrone5Y - light5Y;
+	--drone5Z = initDrone5Z - light5Z;
+
+	--drone6X = initDrone6X - light6X;
+	--drone6Y = initDrone6Y - light6Y;
+	--drone6Z = initDrone6Z - light6Z;
+
+end
+
+function getCoord()
+
+	require("UWBinput");
+	initDrone1X, initDrone1Y, initDrone1Z = getInfo();
+
+end
+
+
+-- called by gMA on "Go Plugin X"
+function MainLoop()
+--[[
+   We are now ready to loop constantly while variable "plugin_loops_run" is not equal to 0
+--]]
+
+	lightInit();
+	droneInit();
+
+	pan1 = calcPan(drone1X1, drone1Y1);
+
+	if drone1X1 < 0 then
+		pan1 = pan1 + 180;
+
+	end
+	pan2 = calcPan(drone2X2, drone2Y2);
+
+	if drone2X2 < 0 then
+		pan2 = pan2 + 180;
+	end
+
+	tilt1 = calcTilt(drone1X1, drone1Y1, drone1Z1);
+
+	incrementTilt1 = tilt1/30;
+	currentTilt1 = tilt1;
+
+	tilt2 = calcTilt(drone1X2, drone1Y2, drone1Z2);
+
+
+	C('Fixture 1 Attribute "tilt" at ' .. tilt1);
+	C('Fixture 1 Attribute "pan" at ' .. pan1);
+
+	C('Fixture 2 Attribute "tilt" at ' .. tilt2);
+	C('Fixture 2 Attribute "pan" at ' .. pan2);
+
+	sleep(.1);
+
+	sleepTime = .1;
+	droneZ = 1;
+
+
+	--[[
+	totalInc = 30;
+
+	z1 = droneZ - light1Z;
+	z2 = droneZ - light2Z;
+
+	while(totalInc > 0) do
+
+		z1 = droneZ - light1Z;
+		z2 = droneZ - light2Z;
+
+		tilt1 = calcTilt(drone1X1, drone1Y1, z1);
+		tilt2 = calcTilt(drone1X2, drone1Y2, z2);
+		C('Fixture 1 Attribute "tilt" at ' .. tilt1);
+		C('Fixture 2 ATtribute "tilt" at ' .. tilt2);
+
+		droneZ = droneZ + .1;
+		totalInc = totalInc - 1;
+
+		sleep(sleepTime);
+	end
+	--]]
+
+	totalInc2 = 12;
+
+	droneX, droneY = 4.8, -1.2;
+
+	while(totalInc2 > 0) do
+		x1 = droneX - light1X;
+		x2 = droneX - light2X;
+
+		y1 = droneY - light1Y;
+		y2 = droneY - light2Y;
+
+		z1 = droneZ - light1Z;
+		z2 = droneZ - light2Z;
+
+
+
+		tilt1 = calcTilt(x1, y1, z1);
+		if tilt1 < 0
+		then tilt1 = tilt1* -1;
+		end
+		tilt2 = calcTilt(x2, y2, z2);
+		if tilt2 < 0
+		then tilt2 = tilt2* -1;
+		end
+
+		pan1 = calcPan(x1, y1);
+
+		pan2 = calcPan(x2, y2);
+
+		if x1 < 0 then
+			pan1 = pan1 + 180;
+		end
+
+		if x2 < 0 then
+			pan2 = pan2 + 180;
+		end
+
+		C('Fixture 1 Attribute "tilt" at ' .. tilt1);
+		C('Fixture 1 ATtribute "pan" at ' .. pan1);
+		C('Fixture 2 Attribute "tilt" at ' .. tilt2);
+		C('Fixture 2 ATtribute "pan" at ' .. pan2);
+
+		droneX = droneX - .1;
+		droneY = droneY - .1;
+		droneZ = droneZ - .1;
+
+		totalInc2 = totalInc2 - 1;
+
+		sleep(.2);
+
+	end
+
+	totalInc3 = 8;
+
+	while(totalInc3 > 0) do
+		x1 = droneX - light1X;
+		x2 = droneX - light2X;
+
+		y1 = droneY - light1Y;
+		y2 = droneY - light2Y;
+
+		z1 = droneZ - light1Z;
+		z2 = droneZ - light2Z;
+
+		tilt1 = calcTilt(x1, y1, z1);
+		if tilt1 < 0 then
+		tilt1 = tilt1 * -1;
+		end
+		tilt2 = calcTilt(x2, y2, z2);
+		if tilt2 < 0 then
+		tilt2 = tilt2 * -1;
+		end
+
+		pan1 = calcPan(x1, y1);
+
+		pan2 = calcPan(x2, y2);
+
+		if x1 < 0 then
+			pan1 = pan1 + 180;
+
+		end
+
+		if x2 < 0 then
+			pan2 = pan2 + 180;
+		end
+
+		C('Fixture 1 Attribute "tilt" at ' .. tilt1);
+		C('Fixture 1 ATtribute "pan" at ' .. pan1);
+		C('Fixture 2 Attribute "tilt" at ' .. tilt2);
+		C('Fixture 2 ATtribute "pan" at ' .. pan2);
+
+		droneX = droneX + .1;
+		droneY = droneY + .1;
+		droneZ = droneZ + .1;
+
+		totalInc3 = totalInc3 - 1;
+
+		sleep(.2);
+
+	end
+
+end
+-- end of the function MainLoop()
+
+--[[
+    This function below is called by gMA when 'Off Plugin X' is executed.
+It is not really necessary, but helpful in providing feedback to the user
+    to let them know the plug-in has finished or been stopped.
+--]]
+function Cleanup()
+     -- print a message in the command line feedback to advise we've stopped.
+     gma.feedback('Finished');
+end
+
+--[[
+   This next statement is _very important_, every plug-in should have it!
+   It tells gMA how to run and stop/reset our plug-in.
+   we tell gMA what our start and stop functions are by name with no brackets, and in order.
+--]]
+return MainLoop, Cleanup;
